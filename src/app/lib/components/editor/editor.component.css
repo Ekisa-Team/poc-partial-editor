@@ -6,8 +6,9 @@
 }
 
 ::ng-deep .editor span[data-mode='readonly'] {
+  background-color: #fffbeb;
   color: #27272a;
-  border-bottom: dashed 2px #fb923c;
+  border-bottom: dashed 2px #f59e0b;
   cursor: not-allowed;
 }
 

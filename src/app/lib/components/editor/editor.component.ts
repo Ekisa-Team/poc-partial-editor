@@ -2,12 +2,10 @@ import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
   ElementRef,
   EventEmitter,
   Input,
-  NgZone,
   OnDestroy,
   OnInit,
   Output,
@@ -29,34 +27,43 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @Input() value!: string;
   @Input() blacklisted: string[] = [];
-  @Input() checkNewInput = false;
+
+  @Input() spellcheck = true;
+
+  @Input() hasRecursiveSearch = false;
   @Input() debounceTime = 1000;
 
   @Output() valueChange = new EventEmitter<string>();
 
   inputSub!: Subscription;
 
-  finalValue!: SafeHtml;
+  editorContent!: SafeHtml;
 
-  constructor(private sanitizer: DomSanitizer, private ngZone: NgZone, private cdr: ChangeDetectorRef) {}
+  constructor(private sanitizer: DomSanitizer) {}
 
   ngOnInit(): void {
-    this.processText(this.value);
+    const { safeHtml } = this.parseInputSource(this.value);
+    this.editorContent = safeHtml;
   }
 
   ngAfterViewInit(): void {
-    if (!this.checkNewInput) return;
-
     this.inputSub = fromEvent(this.editor.nativeElement, 'input')
       .pipe(debounceTime(this.debounceTime))
-      .subscribe((event) => {
-        const html = (event.target as HTMLDivElement).innerHTML || '';
-        console.log(html);
-        // emit plain text value
-        this.valueChange.emit(html);
+      .subscribe((e) => {
+        this.validateDeletion(e as KeyboardEvent);
 
         // process text to be disabled
-        this.processText(html);
+        const htmlText = (e.target as HTMLDivElement).innerHTML || '';
+
+        if (this.hasRecursiveSearch) {
+          const { html, safeHtml } = this.parseInputSource(htmlText);
+          this.editorContent = safeHtml;
+          this.valueChange.emit(html);
+        } else {
+          this.valueChange.emit(htmlText);
+        }
+
+        setTimeout(() => this.placeCaretAtEnd());
       });
   }
 
@@ -64,21 +71,39 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.inputSub.unsubscribe();
   }
 
-  private stripTags(html: string): string {
-    return html.replace(/(<([^>]+)>)/gi, '');
+  private validateDeletion(e: KeyboardEvent) {}
+
+  /**
+   * Analiza un texto proporcionado en búsqueda de las palabras o frases por deshabilitar
+   * y las reemplaza por etiquetas span con el atributo "contenteditable" en false.
+   * @
+   * @param source texto base por analizar
+   * @returns
+   */
+  private parseInputSource(source: string): { html: string; safeHtml: SafeHtml } {
+    this.blacklisted.forEach((text) => {
+      const search = new RegExp(`(?<!<span \w+>)(${text})`, 'g');
+      const tag = `<span contenteditable="false" data-mode="readonly">${text}</span>`;
+      source = source.replace(search, tag);
+    });
+
+    return {
+      html: source,
+      safeHtml: this.sanitizer.bypassSecurityTrustHtml(source + ' '),
+    };
   }
 
-  private processText(value: string): void {
-    let htmlText = value;
+  placeCaretAtEnd() {
+    this.editor.nativeElement.focus();
 
-    for (const text of this.blacklisted) {
-      const search = new RegExp(text, 'g');
-      const tag = `
-        <span title="Deshabilitado" contenteditable="false" data-mode="readonly">${text}</span>`;
+    if (typeof window.getSelection !== 'undefined' && typeof document.createRange !== 'undefined') {
+      const range = document.createRange();
+      range.selectNodeContents(this.editor.nativeElement);
+      range.collapse(false);
 
-      htmlText = htmlText.replace(search, tag);
+      const selection = window.getSelection() as Selection;
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
-
-    this.finalValue = this.sanitizer.bypassSecurityTrustHtml(htmlText + ' ');
   }
 }
