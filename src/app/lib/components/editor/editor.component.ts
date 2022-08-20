@@ -30,8 +30,8 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @Input() spellcheck = true;
 
-  @Input() hasRecursiveSearch = false;
-  @Input() debounceTime = 1000;
+  @Input() hasRecursiveLookup = false;
+  @Input() debounceTime = 2000;
 
   @Output() valueChange = new EventEmitter<string>();
 
@@ -50,12 +50,10 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.inputSub = fromEvent(this.editor.nativeElement, 'input')
       .pipe(debounceTime(this.debounceTime))
       .subscribe((e) => {
-        this.validateDeletion(e as KeyboardEvent);
-
         // process text to be disabled
         const htmlText = (e.target as HTMLDivElement).innerHTML || '';
 
-        if (this.hasRecursiveSearch) {
+        if (this.hasRecursiveLookup) {
           const { html, safeHtml } = this.parseInputSource(htmlText);
           this.editorContent = safeHtml;
           this.valueChange.emit(html);
@@ -71,14 +69,15 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.inputSub.unsubscribe();
   }
 
-  private validateDeletion(e: KeyboardEvent) {}
-
   /**
    * Analiza un texto proporcionado en búsqueda de las palabras o frases por deshabilitar
    * y las reemplaza por etiquetas span con el atributo "contenteditable" en false.
-   * @
+   *
+   * /(?<!<span \w+>)(${text})/g  busca los textos que no estén contenidos dentro de un span
+   * @see https://github.com/tc39/proposal-regexp-lookbehind
+   *
    * @param source texto base por analizar
-   * @returns
+   * @returns objeto con HTML inseguro y seguro
    */
   private parseInputSource(source: string): { html: string; safeHtml: SafeHtml } {
     this.blacklisted.forEach((text) => {
@@ -93,7 +92,10 @@ export class EditorComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  placeCaretAtEnd() {
+  /**
+   * Establece caret al final de la línea por medio de la selección implícita del editor
+   */
+  private placeCaretAtEnd() {
     this.editor.nativeElement.focus();
 
     if (typeof window.getSelection !== 'undefined' && typeof document.createRange !== 'undefined') {

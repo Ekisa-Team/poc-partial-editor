@@ -45,7 +45,7 @@ import { EditorComponent } from './lib/components/editor/editor.component';
         <h3>Recursive search</h3>
         <pre><code>{{ mockBlacklisted3 | json }}</code></pre>
 
-        <app-editor [(value)]="mockText3" [blacklisted]="mockBlacklisted3" [hasRecursiveSearch]="true">
+        <app-editor [(value)]="mockText3" [blacklisted]="mockBlacklisted3" [hasRecursiveLookup]="true">
         </app-editor>
 
         <details style="margin-top: 1rem;">
