@@ -1,0 +1,16 @@
+.editor {
+  background-color: #f4f4f5;
+  border: solid 2px #d4d4d8;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+::ng-deep .editor span[data-mode='readonly'] {
+  color: #27272a;
+  border-bottom: dashed 2px #fb923c;
+  cursor: not-allowed;
+}
+
+.editor:focus-within {
+  outline: solid 2px #2563eb;
+}
